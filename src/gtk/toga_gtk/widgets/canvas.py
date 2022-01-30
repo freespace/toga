@@ -1,5 +1,5 @@
 from ..colors import native_color
-from ..libs import Gtk, Pango, cairo
+from ..libs import Gtk, Pango, cairo, Gdk
 from .base import Widget
 
 
@@ -14,6 +14,23 @@ class Canvas(Widget):
         self.native.interface = self.interface
         self.native.connect("draw", self.gtk_draw_callback)
         self.native.connect('size-allocate', self.gtk_on_size_allocate)
+
+        # needed for on_drag
+        self.native.add_events(Gdk.EventMask.BUTTON1_MOTION_MASK)
+
+        # needed for on_alt_drag
+        self.native.add_events(Gdk.EventMask.BUTTON3_MOTION_MASK)
+
+        # a single callback handles both drag and alt-drag
+        self.native.connect('motion-notify-event', self.gtk_motion_event_callback)
+
+        # needed for on_press and on_alt_press
+        self.native.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        self.native.connect('button-press-event', self.gtk_button_press_callback)
+
+        # needed for on_release/on_alt_release
+        self.native.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
+        self.native.connect('button-release-event', self.gtk_button_release_callback)
 
     def gtk_draw_callback(self, canvas, gtk_context):
         """Creates a draw callback
@@ -33,29 +50,66 @@ class Canvas(Widget):
         if self.interface.on_resize:
             self.interface.on_resize(self.interface)
 
+    def gtk_button_press_callback(self, widget, event):
+        nclicks = 1
+        if event.type == Gdk.EventType._2BUTTON_PRESS:
+            nclicks = 2
+        elif event.type == Gdk.EventType._3BUTTON_PRESS:
+            nclicks = 3
+
+        if event.button == 1 and self.interface.on_press:
+            self.interface.on_press(self.interface, event.x, event.y, nclicks)
+        elif event.button == 3 and self.interface.on_alt_press:
+            """
+            From https://docs.gtk.org/gdk3/struct.EventButton.html:
+
+                The button which was pressed or released, numbered from 1 to 5. Normally button 1 is
+                the left mouse button, 2 is the middle button, and 3 is the right button. On
+                2-button mice, the middle button can often be simulated by pressing both mouse
+                buttons together.
+            """
+            self.interface.on_alt_press(self.interface, event.x, event.y, nclicks)
+
+    def gtk_button_release_callback(self, widget, event):
+        if event.button == 1 and self.interface.on_release:
+            self.interface.on_release(self.interface, event.x, event.y, 1)
+        elif event.button == 3 and self.interface.on_alt_release:
+            self.interface.on_alt_release(self.interface, event.x, event.y, 1)
+
+    def gtk_motion_event_callback(self, widget, event):
+        if event.state == Gdk.ModifierType.BUTTON1_MASK and self.interface.on_drag:
+            self.interface.on_drag(self.interface, event.x, event.y, 1)
+        elif event.state == Gdk.ModifierType.BUTTON3_MASK and self.interface.on_alt_drag:
+            self.interface.on_alt_drag(self.interface, event.x, event.y, 1)
+
     def set_on_resize(self, handler):
         pass
 
     def set_on_press(self, handler):
-        self.interface.factory.not_implemented('Canvas.set_on_press()')
+        pass
 
     def set_on_release(self, handler):
-        self.interface.factory.not_implemented('Canvas.set_on_release()')
+        pass
 
     def set_on_drag(self, handler):
-        self.interface.factory.not_implemented('Canvas.set_on_drag()')
+        pass
 
     def set_on_alt_press(self, handler):
-        self.interface.factory.not_implemented('Canvas.set_on_alt_press()')
+        pass
 
     def set_on_alt_release(self, handler):
-        self.interface.factory.not_implemented('Canvas.set_on_alt_release()')
+        pass
 
     def set_on_alt_drag(self, handler):
-        self.interface.factory.not_implemented('Canvas.set_on_alt_drag()')
+        pass
 
     def redraw(self):
         self.native.queue_draw()
+
+    def get_size(self):
+        w = self.native.get_allocated_width()
+        h = self.native.get_allocated_height()
+        return (w, h)
 
     # Basic paths
 
