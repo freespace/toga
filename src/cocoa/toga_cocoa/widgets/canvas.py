@@ -98,6 +98,9 @@ class Canvas(Widget):
         if self.interface.window and self.interface.on_resize:
             self.interface.on_resize(self.interface)
 
+    def get_size(self):
+        return (self.native.frame.size.width, self.native.frame.size.height)
+
     # Basic paths
 
     def new_path(self, draw_context, *args, **kwargs):
