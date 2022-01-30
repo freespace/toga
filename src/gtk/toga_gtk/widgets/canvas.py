@@ -32,6 +32,11 @@ class Canvas(Widget):
         self.native.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
         self.native.connect('button-release-event', self.gtk_button_release_callback)
 
+        # needed so on_release/on_alt_release passes the same click count
+        # as the paired on_press/on_alt_press
+        self._click_count = -1;
+        self._alt_click_count = -1;
+
     def gtk_draw_callback(self, canvas, gtk_context):
         """Creates a draw callback
 
@@ -52,13 +57,14 @@ class Canvas(Widget):
 
     def gtk_button_press_callback(self, widget, event):
         nclicks = 1
-        if event.type == Gdk.EventType._2BUTTON_PRESS:
+        if event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS:
             nclicks = 2
-        elif event.type == Gdk.EventType._3BUTTON_PRESS:
+        elif event.type == Gdk.EventType.TRIPLE_BUTTON_PRESS:
             nclicks = 3
 
         if event.button == 1 and self.interface.on_press:
             self.interface.on_press(self.interface, event.x, event.y, nclicks)
+            self._click_count = nclicks
         elif event.button == 3 and self.interface.on_alt_press:
             """
             From https://docs.gtk.org/gdk3/struct.EventButton.html:
@@ -69,12 +75,13 @@ class Canvas(Widget):
                 buttons together.
             """
             self.interface.on_alt_press(self.interface, event.x, event.y, nclicks)
+            self._alt_click_count = nclicks
 
     def gtk_button_release_callback(self, widget, event):
         if event.button == 1 and self.interface.on_release:
-            self.interface.on_release(self.interface, event.x, event.y, 1)
+            self.interface.on_release(self.interface, event.x, event.y, self._click_count)
         elif event.button == 3 and self.interface.on_alt_release:
-            self.interface.on_alt_release(self.interface, event.x, event.y, 1)
+            self.interface.on_alt_release(self.interface, event.x, event.y, self._alt_click_count)
 
     def gtk_motion_event_callback(self, widget, event):
         if event.state == Gdk.ModifierType.BUTTON1_MASK and self.interface.on_drag:
