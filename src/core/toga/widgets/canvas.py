@@ -714,6 +714,10 @@ class Canvas(Context, Widget):
         self._on_alt_drag = wrapped_handler(self, handler)
         self._impl.set_on_alt_drag(self._on_alt_drag)
 
+    @property
+    def size(self):
+      return self._impl.get_size()
+
     ###########################################################################
     # Transformations of a canvas
     ###########################################################################
